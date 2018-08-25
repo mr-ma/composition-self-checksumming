@@ -20,8 +20,11 @@
 #include <limits.h>
 #include <stdint.h>
 #include <cxxabi.h>
+#include <composition/Analysis.hpp>
 
 using namespace llvm;
+using namespace composition;
+
 static cl::opt<bool> UseOtherFunctions(
     "use-other-functions", cl::Hidden,
     cl::desc("This allows SC to use other functions, beyond the specified filter set, as checkers to meet the desired connectivity level"));
@@ -79,13 +82,19 @@ std::string demangle_name(const std::string& name)
 }
 
 
-struct SCPass : public ModulePass {
+struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
   Stats stats;
   static char ID;
   SCPass() : ModulePass(ID) {}
 
   llvm::MDNode* sc_guard_md{};
   const std::string sc_guard_str = "sc_guard";
+
+  // Stats function list
+  std::map<Function *, int> ProtectedFuncs;
+  int numberOfGuards = 0;
+  int numberOfGuardInstructions = 0;
+  std::vector<Function *> sensitiveFunctions;
 
   /*long getFuncInstructionCount(const Function &F){
       long count=0;
@@ -109,8 +118,7 @@ struct SCPass : public ModulePass {
 
   bool runOnModule(Module &M) override {
     bool didModify = false;
-    std::vector<Function *> sensitiveFunctions,
-        otherFunctions;
+    std::vector<Function *>  otherFunctions;
     const auto &input_dependency_info =
         getAnalysis<input_dependency::InputDependencyAnalysisPass>()
             .getInputDependencyAnalysis();
@@ -255,15 +263,11 @@ struct SCPass : public ModulePass {
     }
     unsigned int marked_function_count = 0;
 
-    // Stats function list
-    std::map<Function *, int> ProtectedFuncs;
-    int numberOfGuards = 0;
-    int numberOfGuardInstructions = 0;
-
     // Fix for issue #58
     for (auto &SF : sensitiveFunctions){
       ProtectedFuncs[SF] = 0;
     }
+
     // inject one guard for each item in the checkee vector
     // reverse topologically sorted 
     for (auto &F : topologicalSortFuncs) {
@@ -275,25 +279,75 @@ struct SCPass : public ModulePass {
 
       auto F_input_dependency_info = input_dependency_info->getAnalysisInfo(F);
       for (auto &Checkee : it->second) {
-        // This is all for the sake of the stats
-	//only collect connectivity info for sensitive functions
-	if(std::find(sensitiveFunctions.begin(), sensitiveFunctions.end(),Checkee)!=sensitiveFunctions.end()) 
-          ++ProtectedFuncs[Checkee];
-        // End of stats
+        assert(it->first != nullptr && "IT First is nullptr");
+        assert(Checkee != nullptr && "Checkee is nullptr");
 
-        // Note checkees in Function marker pass
-        function_info->add_function(Checkee);
-        marked_function_count++;
-        dbgs() << "Insert guard in " << F->getName()
-               << " checkee: " << Checkee->getName() << "\n";
-        numberOfGuards++;
-        injectGuard(&BB, I, Checkee, numberOfGuardInstructions,
+        auto [undoValues, _patchFunction] = injectGuard(&BB, I, Checkee, numberOfGuardInstructions,
 		   false);// F_input_dependency_info->isInputDepFunction() || F_input_dependency_info->isExtractedFunction());
+
+		   //Clang compiler bug otherwise
+		   auto patchFunction = _patchFunction;
+        auto redo = [Checkee, function_info, &marked_function_count,
+                     F, patchFunction, this](const Manifest& m) {
+          // This is all for the sake of the stats
+          //only collect connectivity info for sensitive functions
+          if(std::find(sensitiveFunctions.begin(), sensitiveFunctions.end(),Checkee)!=sensitiveFunctions.end())
+            ++ProtectedFuncs[Checkee];
+          // End of stats
+          // Note checkees in Function marker pass
+          function_info->add_function(Checkee);
+          marked_function_count++;
+
+          dbgs() << "Insert guard in " << F->getName() << " checkee: " << Checkee->getName() << "\n";
+          numberOfGuards++;
+
+          patchFunction(m);
+        };
+
+        addProtection(std::make_shared<Manifest>(Manifest("sc",
+                                                          Checkee,
+                                                          redo,
+                                                          {std::make_unique<Dependency>("sc", it->first, Checkee),
+                                                           std::make_unique<Present>("sc", Checkee)},
+                                                          true,
+                                                          undoValues)));
+
         didModify = true;
       }
     }
 
-    // Do we need to dump stats?
+    //assertFilteredMarked(function_filter_info, countProcessedFuncs, marked_function_count);
+    return didModify;
+  }
+
+  bool doFinalization(Module &module) override;
+
+  void assertFilteredMarked(const FunctionInformation *function_filter_info,
+                            int countProcessedFuncs,
+                            unsigned int marked_function_count) const {
+    const auto &funinfo =
+        getAnalysis<FunctionMarkerPass>().get_functions_info();
+    dbgs() << "Recieved marked functions "
+                 << funinfo->get_functions().size() << "\n";
+    if (marked_function_count != funinfo->get_functions().size()) {
+      dbgs() << "ERR. Marked functions " << marked_function_count
+                   << " are not reflected correctly "
+                   << funinfo->get_functions().size() << "\n";
+    }
+    // Make sure OH only processed filter function list
+    if (countProcessedFuncs != function_filter_info->get_functions().size() &&
+        !function_filter_info->get_functions().empty()) {
+      errs() << "ERR. processed " << countProcessedFuncs
+             << " function, while filter count is "
+             << function_filter_info->get_functions().size() << "\n";
+      //exit(1);
+    }
+  }
+
+  void dumpStats(const std::vector<Function *> &sensitiveFunctions,
+                 const std::map<Function *, int> &ProtectedFuncs,
+                 int numberOfGuards,
+                 int numberOfGuardInstructions)  {// Do we need to dump stats?
     if (!DumpSCStat.empty()) {
       // calc number of sensitive instructions
       long sensitiveInsts = 0;
@@ -309,6 +363,7 @@ struct SCPass : public ModulePass {
       stats.setDesiredConnectivity(DesiredConnectivity);
       long protectedInsts = 0;
       std::vector<int> frequency;
+
       for (const auto &item : ProtectedFuncs) {
         const auto &function = item.first;
         const int frequencyOfChecks = item.second;
@@ -324,26 +379,6 @@ struct SCPass : public ModulePass {
       dbgs() << "SC stats is requested, dumping stat file...\n";
       stats.dumpJson(DumpSCStat.getValue());
     }
-
-    const auto &funinfo =
-        getAnalysis<FunctionMarkerPass>().get_functions_info();
-    llvm::dbgs() << "Recieved marked functions "
-                 << funinfo->get_functions().size() << "\n";
-    if (marked_function_count != funinfo->get_functions().size()) {
-      llvm::dbgs() << "ERR. Marked functions " << marked_function_count
-                   << " are not reflected correctly "
-                   << funinfo->get_functions().size() << "\n";
-    }
-    // Make sure OH only processed filter function list
-    if (countProcessedFuncs != function_filter_info->get_functions().size() &&
-        !function_filter_info->get_functions().empty()) {
-      errs() << "ERR. processed " << countProcessedFuncs
-             << " function, while filter count is "
-             << function_filter_info->get_functions().size() << "\n";
-      //exit(1);
-    }
-
-    return didModify;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -379,8 +414,8 @@ struct SCPass : public ModulePass {
 
   unsigned int size_begin = 555555555;
   unsigned int address_begin = 222222222;
-  unsigned int expected_hash_begin = 444444444; 
-  void injectGuard(BasicBlock *BB, Instruction *I, Function *Checkee,
+  unsigned int expected_hash_begin = 444444444;
+  std::pair<std::set<llvm::Value *>, PatchFunction> injectGuard(BasicBlock *BB, Instruction *I, Function *Checkee,
                    int &numberOfGuardInstructions, bool is_in_inputdep) {
     LLVMContext &Ctx = BB->getParent()->getContext();
     // get BB parent -> Function -> get parent -> Module
@@ -409,11 +444,15 @@ struct SCPass : public ModulePass {
     auto *arg2 = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Ctx), length);
     auto *arg3 =
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(Ctx), expectedHash);
+
+    std::set<llvm::Value *> undoValues{};
+
+    int localGuardInstructions;
     if (is_in_inputdep) {
       args.push_back(arg1);
       args.push_back(arg2);
       args.push_back(arg3);
-      numberOfGuardInstructions += 1;
+      localGuardInstructions = 1;
     } else {
       auto *A = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "a");
       auto *B = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "b");
@@ -437,26 +476,50 @@ struct SCPass : public ModulePass {
       args.push_back(load2);
       args.push_back(load3);
 
-      numberOfGuardInstructions += 9;
+      undoValues.insert(A);
+      undoValues.insert(B);
+      undoValues.insert(C);
+      undoValues.insert(store1);
+      undoValues.insert(store2);
+      undoValues.insert(store3);
+      undoValues.insert(load1);
+      undoValues.insert(load2);
+      undoValues.insert(load3);
+
+      localGuardInstructions = 9;
     }
 
     CallInst *call = builder.CreateCall(guardFunc, args);
     call->setMetadata(sc_guard_str, sc_guard_md);
+    undoValues.insert(call);
     setPatchMetadata(call, Checkee->getName());
-    Checkee->addFnAttr(llvm::Attribute::NoInline);
     // Stats: we assume the call instrucion and its arguments account for one
     // instruction
+    auto patchFunction = [arg1, arg2, arg3, localGuardInstructions, &numberOfGuardInstructions, Checkee, this](const Manifest &m) {
+      addPreserved("sc",
+                   arg1,
+                   [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
+      addPreserved("sc",
+                   arg2,
+                   [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
+      addPreserved("sc",
+                   arg3,
+                   [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
+      numberOfGuardInstructions += localGuardInstructions;
+      Checkee->addFnAttr(llvm::Attribute::NoInline);
+    };
+
+    return {undoValues,patchFunction};
   }
 };
 }
 
 char SCPass::ID = 0;
-static llvm::RegisterPass<SCPass> X("sc", "Instruments bitcode with guards");
-// Automatically enable the pass.
-// http://adriansampson.net/blog/clangpass.html
-static void registerSCPass(const PassManagerBuilder &,
-                           legacy::PassManagerBase &PM) {
-  PM.add(new SCPass());
+
+bool SCPass::doFinalization(Module &module) {
+  dumpStats(sensitiveFunctions, ProtectedFuncs, numberOfGuards, numberOfGuardInstructions);
+
+  return ModulePass::doFinalization(module);
 }
-static RegisterStandardPasses
-    RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible, registerSCPass);
+
+static llvm::RegisterPass<SCPass> X("sc", "Instruments bitcode with guards", true, false);

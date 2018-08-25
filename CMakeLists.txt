@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 
 project(self-checksumming VERSION 0.1 LANGUAGES CXX)
 
-add_library(SCPass MODULE
+add_library(SCPass SHARED
         include/self-checksumming/DAGCheckersNetwork.h
         include/self-checksumming/CheckersNetworkBase.h
         include/self-checksumming/Stats.h
@@ -14,7 +14,7 @@ add_library(SCPass MODULE
 
 add_library(self-checksumming::SCPass ALIAS SCPass)
 
-add_library(Utils MODULE
+add_library(Utils SHARED
         include/self-checksumming/FunctionInfo.h
         include/self-checksumming/FunctionMarker.h
         include/self-checksumming/FunctionFilter.h
@@ -38,6 +38,7 @@ add_library(self-checksumming::SCPatchPass ALIAS SCPatchPass)
 find_package(LLVM 6.0 REQUIRED CONFIG)
 find_package(input-dependency REQUIRED COMPONENTS InputDependency)
 find_package(nlohmann_json REQUIRED)
+find_package(composition-framework REQUIRED)
 
 target_include_directories(SCPass
         PUBLIC
@@ -71,9 +72,9 @@ endif ()
 
 target_link_libraries(SCPass PRIVATE nlohmann_json::nlohmann_json input-dependency::InputDependency)
 
-target_compile_features(SCPass PRIVATE cxx_std_11 cxx_range_for cxx_auto_type)
-target_compile_features(Utils PRIVATE cxx_std_11 cxx_range_for cxx_auto_type)
-target_compile_features(SCPatchPass PRIVATE cxx_std_11 cxx_range_for cxx_auto_type)
+target_compile_features(SCPass PRIVATE cxx_std_17 cxx_range_for cxx_auto_type)
+target_compile_features(Utils PRIVATE cxx_std_17 cxx_range_for cxx_auto_type)
+target_compile_features(SCPatchPass PRIVATE cxx_std_17 cxx_range_for cxx_auto_type)
 
 target_compile_options(SCPass PRIVATE -fno-rtti)
 target_compile_options(Utils PRIVATE -fno-rtti)
