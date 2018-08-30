@@ -304,13 +304,18 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
           patchFunction(m);
         };
 
+        //Guard values is the call to the guard function.
+        std::set<llvm::Instruction*> guardValues{};
+        guardValues.insert(cast<Instruction>(*undoValues.rbegin()));
+
         addProtection(std::make_shared<Manifest>(Manifest("sc",
                                                           Checkee,
                                                           redo,
                                                           {std::make_unique<Dependency>("sc", it->first, Checkee),
                                                            std::make_unique<Present>("sc", Checkee)},
                                                           true,
-                                                          undoValues)));
+                                                          undoValues,
+                                                          guardValues)));
 
         didModify = true;
       }
