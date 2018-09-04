@@ -442,10 +442,6 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     unsigned int address = address_begin++;
     unsigned int expectedHash = expected_hash_begin++;
 
-
-    dbgs() << "placeholder:" << address << " "
-           << " size:" << length << " expected hash:" << expectedHash << "\n";
-    appendToPatchGuide(length, address, expectedHash, Checkee->getName());
     std::vector<llvm::Value *> args;
 
     auto *arg1 = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Ctx), address);
@@ -503,7 +499,9 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     setPatchMetadata(call, Checkee->getName());
     // Stats: we assume the call instrucion and its arguments account for one
     // instruction
-    auto patchFunction = [arg1, arg2, arg3, localGuardInstructions, &numberOfGuardInstructions, Checkee, this](const Manifest &m) {
+    auto patchFunction = [length, address, expectedHash, arg1, arg2, arg3, localGuardInstructions, &numberOfGuardInstructions, Checkee, this](const Manifest &m) {
+      dbgs() << "placeholder:" << address << " size:" << length << " expected hash:" << expectedHash << "\n";
+      appendToPatchGuide(length, address, expectedHash, Checkee->getName());
       addPreserved("sc",
                    arg1,
                    [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
