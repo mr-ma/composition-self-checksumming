@@ -2,6 +2,7 @@
 #include <time.h>
 #include <algorithm>
 #include <iomanip>
+#include <random>
 
 using json = nlohmann::json;
 
@@ -138,7 +139,8 @@ std::vector<Function *> randomComb(int connectivity,
   std::vector<unsigned int> indices(allFunctions.size());
   std::iota(indices.begin(), indices.end(), 0);
 
-  auto rng = std::default_random_engine{};
+  auto rd = std::random_device{};
+  auto rng = std::default_random_engine{rd()};
   std::shuffle(indices.begin(), indices.end(), rng);
   std::vector<Function *> premutation;
   if (connectivity > allFunctions.size())

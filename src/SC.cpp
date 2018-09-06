@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <cxxabi.h>
 #include <composition/Analysis.hpp>
+#include <random>
 
 using namespace llvm;
 using namespace composition;
@@ -165,7 +166,8 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
       } 
     }
 
-    auto rng = std::default_random_engine{};
+    auto rd = std::random_device{};
+    auto rng = std::default_random_engine{rd()};
 
     dbgs() << "Sensitive functions:" << sensitiveFunctions.size()
            << " other functions:" << otherFunctions.size() << "\n";
