@@ -453,6 +453,9 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
 
     std::set<llvm::Value *> undoValues{};
 
+    undoValues.insert(arg1);
+    undoValues.insert(arg2);
+    undoValues.insert(arg3);
     int localGuardInstructions;
     if (is_in_inputdep) {
       args.push_back(arg1);
