@@ -318,7 +318,8 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
              std::make_unique<Present>("sc", Checkee)},
             true,
             undoValues,
-            guardValues
+            guardValues,
+            patchInfo
         ));
         addProtection(m);
 
@@ -504,6 +505,11 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     setPatchMetadata(call, Checkee->getName());
     // Stats: we assume the call instrucion and its arguments account for one
     // instruction
+    std::ostringstream patchInfoStream{};
+    std::string demangled_name = demangle_name(Checkee->getName());
+    patchInfoStream << demangled_name.c_str() << "," << address << "," << length << "," << expectedHash << "\n";
+    patchInfo = patchInfoStream.str();
+
     auto patchFunction = [length, address, expectedHash, arg1, arg2, arg3, localGuardInstructions, &numberOfGuardInstructions, Checkee, this](const Manifest &m) {
       dbgs() << "placeholder:" << address << " size:" << length << " expected hash:" << expectedHash << "\n";
       appendToPatchGuide(length, address, expectedHash, Checkee->getName());
@@ -522,6 +528,8 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
 
     return {undoValues,patchFunction};
   }
+
+  std::string patchInfo;
 };
 }
 
