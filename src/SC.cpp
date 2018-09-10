@@ -28,26 +28,29 @@ using namespace composition;
 
 static cl::opt<bool> UseOtherFunctions(
     "use-other-functions", cl::Hidden,
-    cl::desc("This allows SC to use other functions, beyond the specified filter set, as checkers to meet the desired connectivity level"));
+    cl::desc(
+        "This allows SC to use other functions, beyond the specified filter set, as checkers to meet the desired connectivity level"));
 
 static cl::opt<bool> SensitiveOnlyChecked(
     "sensitive-only-checked", cl::Hidden,
-    cl::desc("Sensitive functions are only checked and never used as checkers. Extracted only always is given higher priority, that is sensitive functions are never checkers when extracted only is set"));
-
+    cl::desc(
+        "Sensitive functions are only checked and never used as checkers. Extracted only always is given higher priority, that is sensitive functions are never checkers when extracted only is set"));
 
 static cl::opt<bool> ExtractedOnly(
     "extracted-only", cl::Hidden,
-    cl::desc("Only extracted functions are protected using SC, extracted functions in are always checkees and never checkers, this mode uses other functions regardless of setting use-other-functions flag or not. "));
+    cl::desc(
+        "Only extracted functions are protected using SC, extracted functions in are always checkees and never checkers, this mode uses other functions regardless of setting use-other-functions flag or not. "));
 
 static cl::opt<int> DesiredConnectivity(
     "connectivity", cl::Hidden,
     cl::desc(
         "The desired level of connectivity of checkers node in the network "));
 
-static cl::opt<int> MaximumPercOtherFunctions (
+static cl::opt<int> MaximumPercOtherFunctions(
     "maximum-other-percentage", cl::Hidden,
-    cl::desc("The maximum usage percentage (between 0 and 100) of other functions (beyond the filter set) that should be also "
-             "included in the SC protection "));
+    cl::desc(
+        "The maximum usage percentage (between 0 and 100) of other functions (beyond the filter set) that should be also "
+        "included in the SC protection "));
 
 static cl::opt<std::string> LoadCheckersNetwork(
     "load-checkers-network", cl::Hidden,
@@ -63,32 +66,31 @@ static cl::opt<std::string> DumpCheckersNetwork(
 
 namespace {
 
-std::string demangle_name(const std::string& name)
-{
-    int status = -1;
-    char* demangled = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
-    if (status != 0) {
-        return name;
+std::string demangle_name(const std::string &name) {
+  int status = -1;
+  char *demangled = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
+  if (status != 0) {
+    return name;
+  }
+  std::string demangled_name(demangled);
+  demangled_name.erase(std::remove(demangled_name.begin(), demangled_name.end(), ' '), demangled_name.end());
+  for (char &c : demangled_name) {
+    if (c == '(' || c == '*' || c == '&'
+        || c == ')' || c == ',' || c == '<' || c == '>'
+        || c == '~' || c == '[' || c == ']') {
+      c = '_';
     }
-    std::string demangled_name(demangled);
-    demangled_name.erase(std::remove(demangled_name.begin(), demangled_name.end(), ' '), demangled_name.end());
-    for (char &c : demangled_name) {
-      if (c == '(' || c == '*' || c == '&'
-            || c == ')' || c == ',' || c == '<' || c == '>'
-            || c == '~' || c == '[' || c == ']') {
-            c = '_';
-        }
-    }
-    return demangled_name;
+  }
+  return demangled_name;
 }
-
 
 struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
   Stats stats;
   static char ID;
+
   SCPass() : ModulePass(ID) {}
 
-  llvm::MDNode* sc_guard_md{};
+  llvm::MDNode *sc_guard_md{};
   const std::string sc_guard_str = "sc_guard";
 
   // Stats function list
@@ -107,19 +109,21 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
 
 
   bool assert_sensitive_only_checked_condition(const std::vector<Function *> sensitiveFunctions,
-		                               const std::map<Function *, std::vector<Function *>> &checkerFuncMap){
-    for(auto &func: sensitiveFunctions){
-      if(checkerFuncMap.find(func)!=checkerFuncMap.end()){
-	errs() << "Sensitive functions are checkers while SensitiveOnlyChecked is set to:"<<SensitiveOnlyChecked<<"\n";
-	exit(1);
+                                               const std::map<Function *, std::vector<Function *>> &checkerFuncMap) {
+    for (auto &func: sensitiveFunctions) {
+      if (checkerFuncMap.find(func) != checkerFuncMap.end()) {
+        errs() << "Sensitive functions are checkers while SensitiveOnlyChecked is set to:" << SensitiveOnlyChecked
+               << "\n";
+        exit(1);
       }
     }
-    dbgs() << "Sensitive functions are never checkers as SensitiveOnlyChecked is set to:"<<SensitiveOnlyChecked<<"\n";
+    dbgs() << "Sensitive functions are never checkers as SensitiveOnlyChecked is set to:" << SensitiveOnlyChecked
+           << "\n";
   }
 
   bool runOnModule(Module &M) override {
     bool didModify = false;
-    std::vector<Function *>  otherFunctions;
+    std::vector<Function *> otherFunctions;
     const auto &input_dependency_info =
         getAnalysis<input_dependency::InputDependencyAnalysisPass>()
             .getInputDependencyAnalysis();
@@ -128,7 +132,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     auto function_filter_info =
         getAnalysis<FunctionFilterPass>().get_functions_info();
 
-    auto* sc_guard_md_str = llvm::MDString::get(M.getContext(), sc_guard_str);
+    auto *sc_guard_md_str = llvm::MDString::get(M.getContext(), sc_guard_str);
     sc_guard_md = llvm::MDNode::get(M.getContext(), sc_guard_md_str);
 
     int countProcessedFuncs = 0;
@@ -145,8 +149,8 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
                << F.getName() << "\n";
         continue;
       }
-      bool isExtracted =  F_input_dependency_info->isExtractedFunction();
-      bool isSensitive = ExtractedOnly? isExtracted: true; //only extracted functions if ExtarctedOnly is set 
+      bool isExtracted = F_input_dependency_info->isExtractedFunction();
+      bool isSensitive = ExtractedOnly ? isExtracted : true; //only extracted functions if ExtarctedOnly is set
       //honor the filter function list
       if (!function_filter_info->get_functions().empty() &&
           !function_filter_info->is_function(&F)) {
@@ -156,14 +160,13 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
       if (ExtractedOnly && (!isExtracted)) {
         dbgs() << "Adding " << F.getName() << " other functions, ExtractedOnly mode uses other functions\n";
         otherFunctions.push_back(&F);
-      } else if (!ExtractedOnly && UseOtherFunctions && !isSensitive){
+      } else if (!ExtractedOnly && UseOtherFunctions && !isSensitive) {
         dbgs() << "Adding " << F.getName() << " other functions, UseOtherFunctions mode\n";
-	otherFunctions.push_back(&F);
-      }
-      else if (isSensitive) {
+        otherFunctions.push_back(&F);
+      } else if (isSensitive) {
         dbgs() << "Adding " << F.getName() << " to sensitive vector\n";
         sensitiveFunctions.push_back(&F);
-      } 
+      }
     }
 
     auto rd = std::random_device{};
@@ -199,21 +202,21 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
 
     //dbgs() << "Total nodes:" << totalNodes << "\n";
     //int availableOtherFunction = 0;
-      // indicates that we need to take some other functions
+    // indicates that we need to take some other functions
     //availableOtherFunction = actual_connectivity;
     //dbgs() << "available other functions:" << availableOtherFunction << "\n";
 
 
-       //if (availableOtherFunction > 0) {
-      //for (Function *func : otherFunctions) {
-       // dbgs() << "pushing back other input dependent function "
-        //       << func->getName() << "\n";
-       // allFunctions.push_back(func);
-       // availableOtherFunction--;
-       // if (availableOtherFunction <= 0)
-        //  break;
-     // }
-   // }
+    //if (availableOtherFunction > 0) {
+    //for (Function *func : otherFunctions) {
+    // dbgs() << "pushing back other input dependent function "
+    //       << func->getName() << "\n";
+    // allFunctions.push_back(func);
+    // availableOtherFunction--;
+    // if (availableOtherFunction <= 0)
+    //  break;
+    // }
+    // }
 
     dbgs() << "Other functions to be fed to the network of checkers\n";
     for (auto &F : otherFunctions) {
@@ -225,7 +228,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
       dbgs() << F->getName() << "\n";
     }
     dbgs() << "***\n";
-    dbgs()<<"Sensitive functions only checked:"<<SensitiveOnlyChecked<<"\n";
+    dbgs() << "Sensitive functions only checked:" << SensitiveOnlyChecked << "\n";
 
     DAGCheckersNetwork checkerNetwork;
     checkerNetwork.setLowerConnectivityAcceptance(true);
@@ -240,10 +243,11 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
         // TODO: maybe we dump the stats into the JSON file and reload it just
         // like the network
         errs() << "ERR. Stats is not avalilable for the loaded networks...";
-	exit(1);
+        exit(1);
       }
     } else {
-      if(!SensitiveOnlyChecked && !ExtractedOnly)//SensitiveOnlyChecked prevents sensitive function being picked as checkers, extracted functions are never checkers 
+      if (!SensitiveOnlyChecked
+          && !ExtractedOnly)//SensitiveOnlyChecked prevents sensitive function being picked as checkers, extracted functions are never checkers
       {
         otherFunctions.insert(otherFunctions.end(), sensitiveFunctions.begin(),
                               sensitiveFunctions.end());
@@ -252,8 +256,8 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
           sensitiveFunctions, otherFunctions, DesiredConnectivity);
       topologicalSortFuncs = checkerNetwork.getReverseTopologicalSort(checkerFuncMap);
       dbgs() << "Constructed the network of checkers!\n";
-      if(SensitiveOnlyChecked || ExtractedOnly){
-	 assert_sensitive_only_checked_condition(sensitiveFunctions,checkerFuncMap);
+      if (SensitiveOnlyChecked || ExtractedOnly) {
+        assert_sensitive_only_checked_condition(sensitiveFunctions, checkerFuncMap);
       }
     }
     if (!DumpCheckersNetwork.empty()) {
@@ -266,7 +270,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     unsigned int marked_function_count = 0;
 
     // Fix for issue #58
-    for (auto &SF : sensitiveFunctions){
+    for (auto &SF : sensitiveFunctions) {
       ProtectedFuncs[SF] = 0;
     }
 
@@ -284,16 +288,16 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
         assert(it->first != nullptr && "IT First is nullptr");
         assert(Checkee != nullptr && "Checkee is nullptr");
 
-        auto [undoValues, _patchFunction] = injectGuard(&BB, I, Checkee, numberOfGuardInstructions,
-		   false);// F_input_dependency_info->isInputDepFunction() || F_input_dependency_info->isExtractedFunction());
+        auto[undoValues, _patchFunction] = injectGuard(&BB, I, Checkee, numberOfGuardInstructions,
+                                                       false);// F_input_dependency_info->isInputDepFunction() || F_input_dependency_info->isExtractedFunction());
 
-		   //Clang compiler bug otherwise
-		   auto patchFunction = _patchFunction;
+        //Clang compiler bug otherwise
+        auto patchFunction = _patchFunction;
         auto redo = [Checkee, function_info, &marked_function_count,
-                     F, patchFunction, this](const Manifest& m) {
+            F, patchFunction, this](const Manifest &m) {
           // This is all for the sake of the stats
           //only collect connectivity info for sensitive functions
-          if(std::find(sensitiveFunctions.begin(), sensitiveFunctions.end(),Checkee)!=sensitiveFunctions.end())
+          if (std::find(sensitiveFunctions.begin(), sensitiveFunctions.end(), Checkee) != sensitiveFunctions.end())
             ++ProtectedFuncs[Checkee];
           // End of stats
           // Note checkees in Function marker pass
@@ -307,8 +311,13 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
         };
 
         //Guard values is the call to the guard function.
-        std::set<llvm::Instruction*> guardValues{};
-        guardValues.insert(cast<Instruction>(*undoValues.rbegin()));
+        std::set<llvm::Instruction *> guardValues{};
+        guardValues.insert(cast<llvm::Instruction>(*undoValues.rbegin()));
+
+        std::set<llvm::Value *> undoValueSet{};
+        for (auto u : undoValues) {
+          undoValueSet.insert(u);
+        }
 
         auto m = std::shared_ptr<Manifest>(new Manifest(
             "sc",
@@ -317,7 +326,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
             {std::make_unique<Dependency>("sc", it->first, Checkee),
              std::make_unique<Present>("sc", Checkee)},
             true,
-            undoValues,
+            undoValueSet,
             guardValues,
             patchInfo
         ));
@@ -339,11 +348,11 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     const auto &funinfo =
         getAnalysis<FunctionMarkerPass>().get_functions_info();
     dbgs() << "Recieved marked functions "
-                 << funinfo->get_functions().size() << "\n";
+           << funinfo->get_functions().size() << "\n";
     if (marked_function_count != funinfo->get_functions().size()) {
       dbgs() << "ERR. Marked functions " << marked_function_count
-                   << " are not reflected correctly "
-                   << funinfo->get_functions().size() << "\n";
+             << " are not reflected correctly "
+             << funinfo->get_functions().size() << "\n";
     }
     // Make sure OH only processed filter function list
     if (countProcessedFuncs != function_filter_info->get_functions().size() &&
@@ -358,7 +367,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
   void dumpStats(const std::vector<Function *> &sensitiveFunctions,
                  const std::map<Function *, int> &ProtectedFuncs,
                  int numberOfGuards,
-                 int numberOfGuardInstructions)  {// Do we need to dump stats?
+                 int numberOfGuardInstructions) {// Do we need to dump stats?
     if (!DumpSCStat.empty()) {
       // calc number of sensitive instructions
       long sensitiveInsts = 0;
@@ -400,13 +409,15 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     AU.addRequired<FunctionFilterPass>();
     AU.addPreserved<FunctionFilterPass>();
   }
+
   uint64_t rand_uint64() {
     uint64_t r = 0;
     for (int i = 0; i < 64; i += 30) {
-      r = r * ((uint64_t)RAND_MAX + 1) + rand();
+      r = r * ((uint64_t) RAND_MAX + 1) + rand();
     }
     return r;
   }
+
   void appendToPatchGuide(const unsigned int length, const unsigned int address,
                           const unsigned int expectedHash, const std::string &functionName) {
     FILE *pFile;
@@ -426,8 +437,12 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
   unsigned int size_begin = 555555555;
   unsigned int address_begin = 222222222;
   unsigned int expected_hash_begin = 444444444;
-  std::pair<std::set<llvm::Value *>, PatchFunction> injectGuard(BasicBlock *BB, Instruction *I, Function *Checkee,
-                   int &numberOfGuardInstructions, bool is_in_inputdep) {
+
+  std::pair<std::vector<llvm::Value *>, PatchFunction> injectGuard(BasicBlock *BB,
+                                                                   Instruction *I,
+                                                                   Function *Checkee,
+                                                                   int &numberOfGuardInstructions,
+                                                                   bool is_in_inputdep) {
     LLVMContext &Ctx = BB->getParent()->getContext();
     // get BB parent -> Function -> get parent -> Module
     llvm::ArrayRef<llvm::Type *> params;
@@ -437,7 +452,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
 
     IRBuilder<> builder(I);
     auto insertPoint = ++builder.GetInsertPoint();
-    if (llvm::TerminatorInst::classof(I)) {
+    if (llvm::isa<TerminatorInst>(I)) {
       insertPoint--;
     }
     builder.SetInsertPoint(BB, insertPoint);
@@ -452,11 +467,11 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     auto *arg3 =
         llvm::ConstantInt::get(llvm::Type::getInt32Ty(Ctx), expectedHash);
 
-    std::set<llvm::Value *> undoValues{};
+    std::vector<llvm::Value *> undoValues{};
 
-    undoValues.insert(arg1);
-    undoValues.insert(arg2);
-    undoValues.insert(arg3);
+    undoValues.push_back(arg1);
+    undoValues.push_back(arg2);
+    undoValues.push_back(arg3);
     int localGuardInstructions;
     if (is_in_inputdep) {
       args.push_back(arg1);
@@ -486,22 +501,22 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
       args.push_back(load2);
       args.push_back(load3);
 
-      undoValues.insert(A);
-      undoValues.insert(B);
-      undoValues.insert(C);
-      undoValues.insert(store1);
-      undoValues.insert(store2);
-      undoValues.insert(store3);
-      undoValues.insert(load1);
-      undoValues.insert(load2);
-      undoValues.insert(load3);
+      undoValues.push_back(A);
+      undoValues.push_back(B);
+      undoValues.push_back(C);
+      undoValues.push_back(store1);
+      undoValues.push_back(store2);
+      undoValues.push_back(store3);
+      undoValues.push_back(load1);
+      undoValues.push_back(load2);
+      undoValues.push_back(load3);
 
       localGuardInstructions = 9;
     }
 
     CallInst *call = builder.CreateCall(guardFunc, args);
     call->setMetadata(sc_guard_str, sc_guard_md);
-    undoValues.insert(call);
+    undoValues.push_back(call);
     setPatchMetadata(call, Checkee->getName());
     // Stats: we assume the call instrucion and its arguments account for one
     // instruction
@@ -510,23 +525,25 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     patchInfoStream << demangled_name.c_str() << "," << address << "," << length << "," << expectedHash << "\n";
     patchInfo = patchInfoStream.str();
 
-    auto patchFunction = [length, address, expectedHash, arg1, arg2, arg3, localGuardInstructions, &numberOfGuardInstructions, Checkee, this](const Manifest &m) {
-      dbgs() << "placeholder:" << address << " size:" << length << " expected hash:" << expectedHash << "\n";
-      appendToPatchGuide(length, address, expectedHash, Checkee->getName());
-      addPreserved("sc",
-                   arg1,
-                   [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
-      addPreserved("sc",
-                   arg2,
-                   [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
-      addPreserved("sc",
-                   arg3,
-                   [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
-      numberOfGuardInstructions += localGuardInstructions;
-      Checkee->addFnAttr(llvm::Attribute::NoInline);
-    };
+    auto patchFunction =
+        [length, address, expectedHash, arg1, arg2, arg3, localGuardInstructions, &numberOfGuardInstructions, Checkee, this](
+            const Manifest &m) {
+          dbgs() << "placeholder:" << address << " size:" << length << " expected hash:" << expectedHash << "\n";
+          appendToPatchGuide(length, address, expectedHash, Checkee->getName());
+          addPreserved("sc",
+                       arg1,
+                       [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
+          addPreserved("sc",
+                       arg2,
+                       [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
+          addPreserved("sc",
+                       arg3,
+                       [this](const std::string &pass, llvm::Value *oldV, llvm::Value *newV) { assert(false); });
+          numberOfGuardInstructions += localGuardInstructions;
+          Checkee->addFnAttr(llvm::Attribute::NoInline);
+        };
 
-    return {undoValues,patchFunction};
+    return {undoValues, patchFunction};
   }
 
   std::string patchInfo;
