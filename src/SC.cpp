@@ -319,7 +319,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
           undoValueSet.insert(u);
         }
 
-        auto m = std::shared_ptr<Manifest>(new Manifest(
+        auto m = new Manifest(
             "sc",
             Checkee,
             redo,
@@ -329,7 +329,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
             undoValueSet,
             guardValues,
             patchInfo
-        ));
+        );
         addProtection(m);
 
         didModify = true;
