@@ -127,11 +127,15 @@ file_to_open = sys.argv[1]
 r2 = r2pipe.open(file_to_open)
 # find addresses and sizes of all functions
 r2.cmd("aa")
+r2.cmd("aac")
 function_list = r2.cmdj("aflj")
 funcs = {}
 for function in function_list:
     attr = {'size': function['size'], 'offset': function['offset']}
     funcs[function['name']] = attr
+
+import pprint
+pprint.pprint(funcs)
 
 # open patch guide
 guide_to_open = sys.argv[2]
