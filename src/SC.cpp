@@ -84,11 +84,11 @@ std::string demangle_name(const std::string &name) {
   return demangled_name;
 }
 
-struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
+struct SCPass : public ComposableAnalysis<SCPass> {
   Stats stats;
   static char ID;
 
-  SCPass() : ModulePass(ID) {}
+  SCPass() = default;
 
   llvm::MDNode *sc_guard_md{};
   const std::string sc_guard_str = "sc_guard";
@@ -163,6 +163,8 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
       } else if (!ExtractedOnly && UseOtherFunctions && !isSensitive) {
         dbgs() << "Adding " << F.getName() << " other functions, UseOtherFunctions mode\n";
         otherFunctions.push_back(&F);
+      } else if (F.getName() == "main") {
+        otherFunctions.push_back(&F);
       } else if (isSensitive) {
         dbgs() << "Adding " << F.getName() << " to sensitive vector\n";
         sensitiveFunctions.push_back(&F);
@@ -175,8 +177,7 @@ struct SCPass : public ModulePass, public ComposableAnalysis<SCPass> {
     dbgs() << "Sensitive functions:" << sensitiveFunctions.size()
            << " other functions:" << otherFunctions.size() << "\n";
     // shuffle all functions
-    std::shuffle(std::begin(sensitiveFunctions), std::end(sensitiveFunctions),
-                 rng);
+    std::shuffle(std::begin(sensitiveFunctions), std::end(sensitiveFunctions), rng);
     std::shuffle(std::begin(otherFunctions), std::end(otherFunctions), rng);
 
     if (DesiredConnectivity == 0) {
