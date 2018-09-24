@@ -171,8 +171,9 @@ struct SCPass : public ComposableAnalysis<SCPass> {
       }
     }
 
-    auto rd = std::random_device{};
-    auto rng = std::default_random_engine{rd()};
+    //auto rd = std::random_device{};
+    //auto rng = std::default_random_engine{rd()};
+    auto rng = std::default_random_engine{};
 
     dbgs() << "Sensitive functions:" << sensitiveFunctions.size()
            << " other functions:" << otherFunctions.size() << "\n";
@@ -310,6 +311,7 @@ struct SCPass : public ComposableAnalysis<SCPass> {
 
           patchFunction(m);
         };
+        function_info->add_function(Checkee);
 
         //Guard values is the call to the guard function.
         std::set<llvm::Instruction *> guardValues{};
@@ -409,14 +411,6 @@ struct SCPass : public ComposableAnalysis<SCPass> {
     AU.addPreserved<FunctionMarkerPass>();
     AU.addRequired<FunctionFilterPass>();
     AU.addPreserved<FunctionFilterPass>();
-  }
-
-  uint64_t rand_uint64() {
-    uint64_t r = 0;
-    for (int i = 0; i < 64; i += 30) {
-      r = r * ((uint64_t) RAND_MAX + 1) + rand();
-    }
-    return r;
   }
 
   void appendToPatchGuide(const unsigned int length, const unsigned int address,
