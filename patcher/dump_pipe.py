@@ -134,8 +134,8 @@ for function in function_list:
     attr = {'size': function['size'], 'offset': function['offset']}
     funcs[function['name']] = attr
 
-import pprint
-pprint.pprint(funcs)
+#import pprint
+#pprint.pprint(funcs)
 
 # open patch guide
 guide_to_open = sys.argv[2]
