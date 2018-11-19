@@ -20,7 +20,9 @@
 #include <limits.h>
 #include <stdint.h>
 #include <cxxabi.h>
-#include <composition/Analysis.hpp>
+#include <composition/support/Analysis.hpp>
+#include <composition/graph/dependency.hpp>
+#include <composition/graph/present.hpp>
 #include <random>
 
 using namespace llvm;
@@ -84,7 +86,7 @@ std::string demangle_name(const std::string &name) {
   return demangled_name;
 }
 
-struct SCPass : public ComposableAnalysis<SCPass> {
+struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
   Stats stats;
   static char ID;
 
@@ -119,6 +121,7 @@ struct SCPass : public ComposableAnalysis<SCPass> {
     }
     dbgs() << "Sensitive functions are never checkers as SensitiveOnlyChecked is set to:" << SensitiveOnlyChecked
            << "\n";
+    return true;
   }
 
   bool runOnModule(Module &M) override {
@@ -311,10 +314,6 @@ struct SCPass : public ComposableAnalysis<SCPass> {
           patchFunction(m);
         };
 
-        //Guard values is the call to the guard function.
-        std::set<llvm::Instruction *> guardValues{};
-        guardValues.insert(cast<llvm::Instruction>(*undoValues.rbegin()));
-
         std::set<llvm::Value *> undoValueSet{};
         for (auto u : undoValues) {
           undoValueSet.insert(u);
@@ -324,11 +323,10 @@ struct SCPass : public ComposableAnalysis<SCPass> {
             "sc",
             Checkee,
             redo,
-            {std::make_unique<Dependency>("sc", it->first, Checkee),
-             std::make_unique<Present>("sc", Checkee)},
+            {std::make_unique<graph::Dependency>("sc", it->first, Checkee),
+             std::make_unique<graph::Present>("sc", Checkee)},
             true,
             undoValueSet,
-            guardValues,
             patchInfo
         );
         addProtection(m);
