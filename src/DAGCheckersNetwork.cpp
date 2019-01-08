@@ -139,8 +139,9 @@ std::vector<Function *> randomComb(int connectivity,
   std::vector<unsigned int> indices(allFunctions.size());
   std::iota(indices.begin(), indices.end(), 0);
 
-  auto rd = std::random_device{};
-  auto rng = std::default_random_engine{rd()};
+  //auto rd = std::random_device{};
+  //auto rng = std::default_random_engine{rd()};
+  auto rng = std::default_random_engine{};
   std::shuffle(indices.begin(), indices.end(), rng);
   std::vector<Function *> premutation;
   if (connectivity > allFunctions.size())

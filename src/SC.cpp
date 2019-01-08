@@ -21,8 +21,8 @@
 #include <stdint.h>
 #include <cxxabi.h>
 #include <composition/support/Analysis.hpp>
-#include <composition/graph/dependency.hpp>
-#include <composition/graph/present.hpp>
+#include <composition/graph/constraint/dependency.hpp>
+#include <composition/graph/constraint/present.hpp>
 #include <random>
 
 using namespace llvm;
@@ -174,8 +174,9 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
       }
     }
 
-    auto rd = std::random_device{};
-    auto rng = std::default_random_engine{rd()};
+    //auto rd = std::random_device{};
+    //auto rng = std::default_random_engine{rd()};
+    auto rng = std::default_random_engine{};
 
     dbgs() << "Sensitive functions:" << sensitiveFunctions.size()
            << " other functions:" << otherFunctions.size() << "\n";
@@ -323,8 +324,8 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
             "sc",
             Checkee,
             redo,
-            {std::make_unique<graph::Dependency>("sc", it->first, Checkee),
-             std::make_unique<graph::Present>("sc", Checkee)},
+            {std::make_unique<graph::constraint::Dependency>("sc", it->first, Checkee),
+             std::make_unique<graph::constraint::Present>("sc", Checkee)},
             true,
             undoValueSet,
             patchInfo
