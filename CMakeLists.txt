@@ -14,18 +14,6 @@ add_library(SCPass SHARED
 
 add_library(self-checksumming::SCPass ALIAS SCPass)
 
-add_library(Utils SHARED
-        include/self-checksumming/FunctionInfo.h
-        include/self-checksumming/FunctionMarker.h
-        include/self-checksumming/FunctionFilter.h
-
-        src/FunctionInfo.cpp
-        src/FunctionMarker.cpp
-        src/FunctionFilter.cpp
-        )
-
-add_library(self-checksumming::Utils ALIAS Utils)
-
 add_library(SCPatchPass MODULE
         include/self-checksumming/PatchManifest.h
 
@@ -35,20 +23,13 @@ add_library(SCPatchPass MODULE
 
 add_library(self-checksumming::SCPatchPass ALIAS SCPatchPass)
 
-find_package(LLVM 6.0 REQUIRED CONFIG)
+find_package(LLVM 7.0 REQUIRED CONFIG)
 find_package(input-dependency REQUIRED COMPONENTS InputDependency)
 find_package(nlohmann_json REQUIRED)
 find_package(composition-framework REQUIRED)
+find_package(function-filter REQUIRED)
 
 target_include_directories(SCPass
-        PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-        PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${LLVM_INCLUDE_DIRS})
-
-target_include_directories(Utils
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -65,19 +46,17 @@ target_include_directories(SCPatchPass
         ${LLVM_INCLUDE_DIRS})
 
 if ($ENV{CLION_IDE})
-    include_directories("/usr/include/llvm-6.0/")
-    include_directories("/usr/include/llvm-c-6.0/")
+    include_directories("/usr/include/llvm-7.0/")
+    include_directories("/usr/include/llvm-c-7.0/")
 endif ()
 
 
 target_link_libraries(SCPass PRIVATE nlohmann_json::nlohmann_json input-dependency::InputDependency)
 
 target_compile_features(SCPass PRIVATE cxx_std_17 cxx_range_for cxx_auto_type)
-target_compile_features(Utils PRIVATE cxx_std_17 cxx_range_for cxx_auto_type)
 target_compile_features(SCPatchPass PRIVATE cxx_std_17 cxx_range_for cxx_auto_type)
 
 target_compile_options(SCPass PRIVATE -fno-rtti)
-target_compile_options(Utils PRIVATE -fno-rtti)
 target_compile_options(SCPatchPass PRIVATE -fno-rtti)
 
 
@@ -102,7 +81,7 @@ include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/self-checksumming)
 
 install(
-        TARGETS SCPass Utils SCPatchPass
+        TARGETS SCPass SCPatchPass
         EXPORT self-checksumming-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
