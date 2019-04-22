@@ -164,8 +164,8 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
       bool isExtracted = F_input_dependency_info->isExtractedFunction();
       bool isSensitive =
           ExtractedOnly
-              ? isExtracted
-              : true; // only extracted functions if ExtarctedOnly is set
+          ? isExtracted
+          : true; // only extracted functions if ExtarctedOnly is set
       // honor the filter function list
       if (!function_filter_info->get_functions().empty() &&
           !function_filter_info->is_function(&F)) {
@@ -270,8 +270,8 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
     } else {
       if (!SensitiveOnlyChecked &&
           !ExtractedOnly) // SensitiveOnlyChecked prevents sensitive function
-                          // being picked as checkers, extracted functions are
-                          // never checkers
+        // being picked as checkers, extracted functions are
+        // never checkers
       {
         otherFunctions.insert(otherFunctions.end(), sensitiveFunctions.begin(),
                               sensitiveFunctions.end());
@@ -314,15 +314,15 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
         assert(it->first != nullptr && "IT First is nullptr");
         assert(Checkee != nullptr && "Checkee is nullptr");
 
-        auto [undoValues, _patchFunction] = injectGuard(
+        auto[undoValues, _patchFunction] = injectGuard(
             &BB, I, Checkee, numberOfGuardInstructions,
             false); // F_input_dependency_info->isInputDepFunction() ||
-                    // F_input_dependency_info->isExtractedFunction());
+        // F_input_dependency_info->isExtractedFunction());
 
         // Clang compiler bug otherwise
         auto patchFunction = _patchFunction;
         auto redo = [Checkee, function_info, &marked_function_count, F,
-                     patchFunction, this](const Manifest &m) {
+            patchFunction, this](const Manifest &m) {
           // This is all for the sake of the stats
           // only collect connectivity info for sensitive functions
           if (std::find(sensitiveFunctions.begin(), sensitiveFunctions.end(),
@@ -436,7 +436,7 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
   uint64_t rand_uint64() {
     uint64_t r = 0;
     for (int i = 0; i < 64; i += 30) {
-      r = r * ((uint64_t)RAND_MAX + 1) + rand();
+      r = r * ((uint64_t) RAND_MAX + 1) + rand();
     }
     return r;
   }
@@ -552,8 +552,8 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
     patchInfo = patchInfoStream.str();
 
     auto patchFunction = [length, address, expectedHash, arg1, arg2, arg3,
-                          localGuardInstructions, &numberOfGuardInstructions,
-                          Checkee, this](const Manifest &m) {
+        localGuardInstructions, &numberOfGuardInstructions,
+        Checkee, this](const Manifest &m) {
       dbgs() << "placeholder:" << address << " size:" << length
              << " expected hash:" << expectedHash << "\n";
       appendToPatchGuide(length, address, expectedHash, Checkee->getName());

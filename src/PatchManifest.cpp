@@ -2,12 +2,12 @@
 #include "nlohmann/json.hpp"
 #include <iostream>
 
-void PatchManifest::readPatchManifest(std::string manifestFilePath) {
+void PatchManifest::readPatchManifest(const std::string& manifestFilePath) {
   using json = nlohmann::json;
   json root; // will contain the root value after parsing.
   std::ifstream stream(manifestFilePath, std::ifstream::binary);
   stream >> root;
-  for (const auto& patch : root) {
+  for (const auto &patch : root) {
     this->size_patches[patch["size_placeholder"].get<int>()] =
         patch["size_target"].get<int>();
     this->address_patches[patch["add_placeholder"].get<int>()] =
@@ -16,6 +16,7 @@ void PatchManifest::readPatchManifest(std::string manifestFilePath) {
         patch["hash_target"].get<int>();
   }
 }
+
 int main() {
 
   PatchManifest patchManifest;

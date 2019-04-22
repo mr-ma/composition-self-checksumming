@@ -25,17 +25,19 @@ protected:
   //void topologicalSortUtil(int v, std::unique_ptr<bool[]> &visited,
   //                         std::list<Function *> &List);
   //std::list<Function *> getReverseTopologicalSort(const std::map<Function *, std::vector<Function *>>);
-  void printVector(std::vector<int> vector);
+  void printVector(std::vector<int> vector) override;
   // int AllFunctions;
   bool accept_lower_connectivity = false;
 public:
-  std::map<Function *, std::vector<Function *>> constructProtectionNetwork(std::vector<Function *> sensitiveFunctions,std::vector<Function *> checkerFunctions, int connectivity);
-  void dumpJson(const std::map<Function *, std::vector<Function *>>,
+  std::map<Function *, std::vector<Function *>> constructProtectionNetwork(std::vector<Function *> sensitiveFunctions,
+                                                                           std::vector<Function *> checkerFunctions,
+                                                                           int connectivity) override;
+  void dumpJson(std::map<Function *, std::vector<Function *>>,
                 std::string filePath,
-                const std::list<Function *> reverseTopologicalSort);
-  std::list<Function*> getReverseTopologicalSort( std::map<Function*,std::vector<Function*>>);
+                std::list<Function *> reverseTopologicalSort) override;
+  std::list<Function *> getReverseTopologicalSort(std::map<Function *, std::vector<Function *>>) override;
   std::map<Function *, std::vector<Function *>>
   loadJson(std::string filePath, llvm::Module &module,
-           std::list<Function *> &reverseTopologicalSort);
+           std::list<Function *> &reverseTopologicalSort) override;
   void setLowerConnectivityAcceptance(bool);
 };

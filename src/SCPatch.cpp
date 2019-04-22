@@ -17,6 +17,7 @@ using namespace llvm;
 namespace {
 struct SCPatchPass : public ModulePass {
   static char ID;
+
   SCPatchPass() : ModulePass(ID) {}
 
   bool runOnModule(Module &M) override {
@@ -29,7 +30,7 @@ struct SCPatchPass : public ModulePass {
         for (auto &I : B) {
           if (I.getMetadata("address")) {
             didModify = patchStore(&I, (patchManifest.address_patches),
-                                   /*16bit*/ false);
+                /*16bit*/ false);
             // dbgs()<<"patching address\n";
           } else if (I.getMetadata("length")) {
             didModify =
@@ -52,6 +53,7 @@ struct SCPatchPass : public ModulePass {
     }
     return didModify;
   }
+
   bool patchStore(Instruction *I, std::map<int, int> lookupMap, bool is16bit) {
     llvm::LLVMContext &Ctx = I->getModule()->getContext();
     llvm::IRBuilder<> builder(I);
@@ -116,11 +118,13 @@ struct SCPatchPass : public ModulePass {
 char SCPatchPass::ID = 0;
 static llvm::RegisterPass<SCPatchPass>
     X("scpatch", "Patch guards with expected address, size and hashes");
+
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
 static void registerSCPatchPass(const PassManagerBuilder &,
                                 legacy::PassManagerBase &PM) {
   PM.add(new SCPatchPass());
 }
+
 static RegisterStandardPasses
     RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible, registerSCPatchPass);

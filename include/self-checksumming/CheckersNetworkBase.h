@@ -21,9 +21,14 @@ protected:
   //int AllFunctions;
 
 public:
-  virtual std::map<Function*,std::vector<Function*>> constructProtectionNetwork(std::vector<Function*> sensitiveFunctions,std::vector<Function*> allFunctions,int connectivity) = 0;
-  virtual std::list<Function*> getReverseTopologicalSort( std::map<Function*,std::vector<Function*>>) = 0;
-  virtual void dumpJson(const std::map<Function *, std::vector<Function *>>,
-                std::string filePath,const std::list<Function *> reverseTopologicalSort)=0;
-  virtual std::map<Function *, std::vector<Function *>> loadJson(std::string filePath, llvm::Module &module, std::list<Function *> &reverseTopologicalSort) =0;
+  virtual std::map<Function *,
+                   std::vector<Function *>> constructProtectionNetwork(std::vector<Function *> sensitiveFunctions,
+                                                                       std::vector<Function *> allFunctions,
+                                                                       int connectivity) = 0;
+  virtual std::list<Function *> getReverseTopologicalSort(std::map<Function *, std::vector<Function *>>) = 0;
+  virtual void dumpJson(std::map<Function *, std::vector<Function *>>,
+                        std::string filePath, std::list<Function *> reverseTopologicalSort) = 0;
+  virtual std::map<Function *, std::vector<Function *>> loadJson(std::string filePath,
+                                                                 llvm::Module &module,
+                                                                 std::list<Function *> &reverseTopologicalSort) = 0;
 };

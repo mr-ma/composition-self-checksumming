@@ -12,9 +12,11 @@ void DAGCheckersNetwork::printVector(std::vector<int> vector) {
   }
   printf("\n");
 }
-void DAGCheckersNetwork::setLowerConnectivityAcceptance(bool value){
-	this->accept_lower_connectivity = value;
+
+void DAGCheckersNetwork::setLowerConnectivityAcceptance(bool value) {
+  this->accept_lower_connectivity = value;
 }
+
 std::map<Function *, std::vector<Function *>>
 DAGCheckersNetwork::loadJson(std::string filePath, llvm::Module &module,
                              std::list<Function *> &reverseTopologicalSort) {
@@ -47,6 +49,7 @@ DAGCheckersNetwork::loadJson(std::string filePath, llvm::Module &module,
   }
   return dump_map;
 }
+
 void DAGCheckersNetwork::dumpJson(
     const std::map<Function *, std::vector<Function *>> checkerToCheckee,
     std::string filePath, const std::list<Function *> reverseTopologicalSort) {
@@ -54,7 +57,7 @@ void DAGCheckersNetwork::dumpJson(
   json j;
   std::vector<Function *> uniqueCheckees;
   j["allCheckees"] = json::array();
-  for (auto checker : checkerToCheckee) {
+  for (const auto& checker : checkerToCheckee) {
     if (!checker.first) {
       dbgs() << "Null found\n";
       continue;
@@ -63,9 +66,9 @@ void DAGCheckersNetwork::dumpJson(
     j["map"][checker.first->getName()] = json::array();
     for (auto checkee : checker.second) {
       j["map"][checker.first->getName()].push_back(checkee->getName());
-      if(std::find(uniqueCheckees.begin(), uniqueCheckees.end(), checkee)==uniqueCheckees.end()){
+      if (std::find(uniqueCheckees.begin(), uniqueCheckees.end(), checkee) == uniqueCheckees.end()) {
         j["allCheckees"].push_back(checkee->getName());
-	uniqueCheckees.push_back(checkee);
+        uniqueCheckees.push_back(checkee);
       }
     }
     dbgs() << "Dumped sucessfully\n";
@@ -79,11 +82,11 @@ void DAGCheckersNetwork::dumpJson(
   o << std::setw(4) << j << std::endl;
 }
 
-void topologicalSortUtil(int v, Function* F,
+void topologicalSortUtil(int v, Function *F,
                          std::unique_ptr<bool[]> &visited,
-                         std::list<Function*> &List,
-			 const std::map<Function*,std::vector<Function*>> &checkerCheckeeMap,
-			 std::vector<Function*> allFunctions) {
+                         std::list<Function *> &List,
+                         const std::map<Function *, std::vector<Function *>> &checkerCheckeeMap,
+                         std::vector<Function *> allFunctions) {
   // mark node as visited
   visited[v] = true;
   // recur for all vertices adjacent to this vertex
@@ -100,35 +103,35 @@ void topologicalSortUtil(int v, Function* F,
   List.push_back(allFunctions[v]);
 }
 
-std::vector<Function *> getAllFunctions(std::map<Function*,std::vector<Function*>> checkerCheckeeMap){
+std::vector<Function *> getAllFunctions(const std::map<Function *, std::vector<Function *>>& checkerCheckeeMap) {
 
   std::vector<Function *> functions;
   for (auto &map : checkerCheckeeMap) {
-    Function* checker = map.first;
-    if(std::find(functions.begin(),functions.end(),checker)==functions.end())
+    Function *checker = map.first;
+    if (std::find(functions.begin(), functions.end(), checker) == functions.end())
       functions.push_back(checker);
     for (auto &checkee : map.second) {
-      if(std::find(functions.begin(),functions.end(),checkee)==functions.end())
-	functions.push_back(checkee);
+      if (std::find(functions.begin(), functions.end(), checkee) == functions.end())
+        functions.push_back(checkee);
     }
   }
   return functions;
 }
 
-
-std::list<Function*> DAGCheckersNetwork::getReverseTopologicalSort(std::map<Function*,std::vector<Function*>> checkerCheckeeMap) {
+std::list<Function *> DAGCheckersNetwork::getReverseTopologicalSort(std::map<Function *,
+                                                                             std::vector<Function *>> checkerCheckeeMap) {
   std::list<Function *> List;
   // Mark all vetices as not visited
   std::vector<Function *> AllFunctions = getAllFunctions(checkerCheckeeMap);
   int V = static_cast<int>(AllFunctions.size());
   std::unique_ptr<bool[]> visited(new bool[V]);
-  for (int i=0;i<V;i++)
+  for (int i = 0; i < V; i++)
     visited[i] = false;
   // call recursive helper to store the sort
-  for (int i = 0; i < V; i++){
+  for (int i = 0; i < V; i++) {
     auto function = AllFunctions[i];
     if (!visited[i])
-      topologicalSortUtil(i,function ,visited, List,checkerCheckeeMap, AllFunctions);
+      topologicalSortUtil(i, function, visited, List, checkerCheckeeMap, AllFunctions);
   }
   dbgs() << "DAGCheckersNetwork::getReverseTopologicalSort freed visited\n";
   return List;
@@ -161,12 +164,12 @@ DAGCheckersNetwork::constructProtectionNetwork(
 
   std::map<Function *, std::vector<Function *>> checkeeChecker;
   std::map<Function *, std::vector<Function *>> checkerCheckee;
-  
-  std::vector<Function *> availableCheckees = sensitiveFunctions;  
+
+  std::vector<Function *> availableCheckees = sensitiveFunctions;
   std::vector<Function *> availableCheckers = checkerFunctions;
-  std::vector<Function *> visited;  
+  std::vector<Function *> visited;
   for (auto &F : sensitiveFunctions) {
-    dbgs()<<"Checker function:"<<F->getName()<<"\n";
+    dbgs() << "Checker function:" << F->getName() << "\n";
     //availableCheckees.erase(
     //    std::remove(availableCheckees.begin(), availableCheckees.end(), F),
     //    availableCheckees.end());
@@ -195,7 +198,8 @@ DAGCheckersNetwork::constructProtectionNetwork(
 
     checkeeChecker[F] = randomComb(c, availableCheckers);
     //if(checkeeChecker[F].size()!=c)
-    errs()<<"C is set to "<<c<<" while size of checkees for "<<F->getName()<<" is "<<checkeeChecker[F].size()<<"\n";
+    errs() << "C is set to " << c << " while size of checkees for " << F->getName() << " is "
+           << checkeeChecker[F].size() << "\n";
     //exit(1);
   }
 
@@ -207,14 +211,14 @@ DAGCheckersNetwork::constructProtectionNetwork(
       // this is a sensitive function assure that the number of checkers is
       // equal to the connectivity level
       if (map.second.size() != connectivity) {
-	if(!accept_lower_connectivity){
+        if (!accept_lower_connectivity) {
           errs() << "DAGCheckersNetwork: connectivity level is not preserved for "
                     "sensitive functions\n";
           exit(1);
-	} else {
-          dbgs() << "DAGCheckersNetwork: connectivity level is not preserved for "<<checkee->getName()<<"\n";
-         
-	}
+        } else {
+          dbgs() << "DAGCheckersNetwork: connectivity level is not preserved for " << checkee->getName() << "\n";
+
+        }
       }
     }
     for (auto &checker : map.second) {
