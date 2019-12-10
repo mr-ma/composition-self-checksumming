@@ -451,13 +451,11 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
             expectedHash);
     fclose(pFile);
   }
-
-  void setPatchMetadata(Instruction *Inst, const std::string &tag) {
-    LLVMContext &C = Inst->getContext();
-    MDNode *N = MDNode::get(C, MDString::get(C, tag));
-    Inst->setMetadata("guard", N);
+  void setMetadata(LLVMContext &ctx, Instruction *inst, std::string metadataStr){
+    auto* guard_md_str = llvm::MDString::get(ctx,metadataStr);
+    MDNode* guard_md = llvm::MDNode::get(ctx,guard_md_str);
+    inst->setMetadata(metadataStr, guard_md);
   }
-
   unsigned int size_begin = 555555555;
   unsigned int address_begin = 222222222;
   unsigned int expected_hash_begin = 444444444;
@@ -468,8 +466,8 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
     LLVMContext &Ctx = BB->getParent()->getContext();
     // get BB parent -> Function -> get parent -> Module
     llvm::ArrayRef<llvm::Type *> params;
-    params = {Type::getInt32Ty(Ctx), Type::getInt32Ty(Ctx),
-              Type::getInt32Ty(Ctx)};
+    params = {Type::getInt32Ty(Ctx)}; /*, Type::getInt32Ty(Ctx),
+              Type::getInt32Ty(Ctx)};*/
     llvm::FunctionType *function_type =
         llvm::FunctionType::get(llvm::Type::getVoidTy(Ctx), params, false);
     Constant *guardFunc = BB->getParent()->getParent()->getOrInsertFunction(
@@ -495,54 +493,46 @@ struct SCPass : public composition::support::ComposableAnalysis<SCPass> {
     std::vector<llvm::Value *> undoValues{};
 
     undoValues.push_back(arg1);
-    undoValues.push_back(arg2);
-    undoValues.push_back(arg3);
+    //undoValues.push_back(arg2);
+    //undoValues.push_back(arg3);
     int localGuardInstructions;
     if (is_in_inputdep) {
       args.push_back(arg1);
-      args.push_back(arg2);
-      args.push_back(arg3);
+      //args.push_back(arg2);
+      //args.push_back(arg3);
       localGuardInstructions = 1;
     } else {
       auto *A = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "a");
-      auto *B = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "b");
-      auto *C = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "c");
+      //auto *B = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "b");
+      //auto *C = builder.CreateAlloca(Type::getInt32Ty(Ctx), nullptr, "c");
       auto *store1 = builder.CreateStore(arg1, A, /*isVolatile=*/false);
-      store1->setMetadata(sc_guard_str, sc_guard_md);
-      // setPatchMetadata(store1, "address");
-      auto *store2 = builder.CreateStore(arg2, B, /*isVolatile=*/false);
-      store2->setMetadata(sc_guard_str, sc_guard_md);
-      // setPatchMetadata(store2, "length");
-      auto *store3 = builder.CreateStore(arg3, C, /*isVolatile=*/false);
-      store3->setMetadata(sc_guard_str, sc_guard_md);
-      // setPatchMetadata(store3, "hash");
+      //auto *store2 = builder.CreateStore(arg2, B, /*isVolatile=*/false);
+      //auto *store3 = builder.CreateStore(arg3, C, /*isVolatile=*/false);
       auto *load1 = builder.CreateLoad(A);
-      load1->setMetadata(sc_guard_str, sc_guard_md);
-      auto *load2 = builder.CreateLoad(B);
-      load2->setMetadata(sc_guard_str, sc_guard_md);
-      auto *load3 = builder.CreateLoad(C);
-      load3->setMetadata(sc_guard_str, sc_guard_md);
+      //auto *load2 = builder.CreateLoad(B);
+      //auto *load3 = builder.CreateLoad(C);
       args.push_back(load1);
-      args.push_back(load2);
-      args.push_back(load3);
+      //args.push_back(load2);
+      //args.push_back(load3);
 
       undoValues.push_back(A);
-      undoValues.push_back(B);
-      undoValues.push_back(C);
+      //undoValues.push_back(B);
+      //undoValues.push_back(C);
       undoValues.push_back(store1);
-      undoValues.push_back(store2);
-      undoValues.push_back(store3);
+      //undoValues.push_back(store2);
+      //undoValues.push_back(store3);
       undoValues.push_back(load1);
-      undoValues.push_back(load2);
-      undoValues.push_back(load3);
+      //undoValues.push_back(load2);
+      //undoValues.push_back(load3);
 
       localGuardInstructions = 9;
     }
 
     CallInst *call = builder.CreateCall(guardFunc, args);
-    call->setMetadata(sc_guard_str, sc_guard_md);
+
+    setMetadata(Ctx,call, "sc_guard");
     undoValues.push_back(call);
-    setPatchMetadata(call, Checkee->getName());
+    //setPatchMetadata(call, Checkee->getName());
     // Stats: we assume the call instrucion and its arguments account for one
     // instruction
     std::ostringstream patchInfoStream{};
